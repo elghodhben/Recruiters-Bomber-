@@ -46,20 +46,22 @@ const crawl =  async (Keywords , location) => {
             (allDivs) => allDivs[allDivs.length - 1].innerText
         );
 
-
+        
         //  clicking browser bottom navigation buttons
         for(let pageToClick = 2; pageToClick <= pageCount ; pageToClick++){
             console.log("scraping page : " + pageToClick);
             //extracting inner text from result search result element
             const searchResultElement = await page.$$eval(
-                ".gsc-webResult .gsc-result .gsc-table-result .gsc-table-cell-snippet-close gs-bidi-start-align .gs-snippet",
-                (allAs) => allAs.map((a) => innerText)
+                ".gsc-webResult .gsc-result .gsc-table-result .gsc-table-cell-snippet-close .gs-bidi-start-align.gs-snippet",
+                (allAs) => allAs.map((a) => a.innerText)
             );
                 
             const searchResultElementRef = await page.$$eval(
                 ".gsc-webResult .gsc-result .gsc-thumbnail-inside div a",
                 (allAs) => allAs.map((a) => a.href)
             );
+
+            console.log(searchResultElementRef);
 
             //email regex
             const emailRegex = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g;
@@ -81,18 +83,18 @@ const crawl =  async (Keywords , location) => {
             //waiting for the "next" button to appear
             await page.waitForSelector(".gsc-cursor");
             const pageSelector = `.gsc-cursor-page:nth-child(${pageToClick})`;
-
+            
             //adding email to emails array
             x = x.concat(extractedEmails);
             await page.waitForTimeout(3000);
 
             // checking if the page is empty we close browser
-            // const elements = await page.$$(".gsc-cursor, " + pageSelector);
+             const elements = await page.$$(".gsc-cursor, " + pageSelector);
             
-            // if(elements.length === 0) {
-            //console.log("Element not found. Closing the bprwser.");
-            // await browser.close();
-            // }
+             if(elements.length === 0) {
+            console.log("Element not found. Closing the bprwser.");
+             await browser.close();
+             }
 
             //clicking on navigation button
             await page.click(pageSelector);
@@ -113,7 +115,7 @@ const crawl =  async (Keywords , location) => {
                 return result;
             }, []);
 
-            //console.log(extractedData);
+            console.log(extractedData);
 
             //closing browser 
             browser.close();
