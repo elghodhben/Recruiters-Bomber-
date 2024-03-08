@@ -8,23 +8,27 @@ puppeteer.use(StealthPlugin());
 //Random user agent for browser for stealth
 const userAgent = new UserAgent();
 
-const crawl =  async (Keywords , location) => {
+const crawl = async (Keywords, location) => {
     try {
         const browser = await puppeteer.launch({
             headless: false,
             args: [
-                "p.webshare.io:9999",
+                "proxy2.webshare.io:9999",
                 "--user-agent=" + userAgent + "",
             ],
         });
 
         const page = await browser.newPage();
+        // Set the language for Google Custom Search Engine (CSE) to Arabic
+        await page.setExtraHTTPHeaders({
+            "Accept-Language": "ar",
+        });
 
         await page.goto("https://cse.google.com/cse?cx=647e649a514ea4d50");
 
         //typing in google search bar
         await page.type("#gsc-i-id1", `${Keywords} ${location}`);
-        
+
         //clicking search button 
         await page.click(".gsc-search-button .gsc-search-button-v2");
 
@@ -35,7 +39,7 @@ const crawl =  async (Keywords , location) => {
 
         //checking if page exsit
         const divs = await page.$$(".gsc-cursor div");
-        if(divs.length === 0){
+        if (divs.length === 0) {
             browser.close();
             return [];
         }
@@ -46,20 +50,22 @@ const crawl =  async (Keywords , location) => {
             (allDivs) => allDivs[allDivs.length - 1].innerText
         );
 
-
         //  clicking browser bottom navigation buttons
-        for(let pageToClick = 2; pageToClick <= pageCount ; pageToClick++){
+        for (let pageToClick = 2; pageToClick <= pageCount; pageToClick++) {
+
             console.log("scraping page : " + pageToClick);
             //extracting inner text from result search result element
             const searchResultElement = await page.$$eval(
-                ".gsc-webResult .gsc-result .gsc-table-result .gsc-table-cell-snippet-close gs-bidi-start-align .gs-snippet",
-                (allAs) => allAs.map((a) => innerText)
+                ".gsc-webResult .gsc-result .gsc-table-result .gsc-table-cell-snippet-close .gs-bidi-start-align.gs-snippet ",
+                (allAs) => allAs.map((a) => a.innerText)
             );
-                
+
             const searchResultElementRef = await page.$$eval(
                 ".gsc-webResult .gsc-result .gsc-thumbnail-inside div a",
                 (allAs) => allAs.map((a) => a.href)
             );
+
+            console.log(searchResultElementRef);
 
             //email regex
             const emailRegex = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g;
@@ -67,10 +73,10 @@ const crawl =  async (Keywords , location) => {
             // Extracting emails and adding href 
             const extractedEmails = searchResultElement.flatMap((text, index) => {
                 const matches = text.match(emailRegex);
-                if(matches) {
+                if (matches) {
                     return matches.map((match) => ({
                         source: searchResultElementRef[index],
-                        email: match,  
+                        email: match,
                     }));
                 }
                 return [];
@@ -84,11 +90,11 @@ const crawl =  async (Keywords , location) => {
 
             //adding email to emails array
             x = x.concat(extractedEmails);
-            await page.waitForTimeout(3000);
+            // await page.waitForTimeout(6000);
 
             // checking if the page is empty we close browser
             // const elements = await page.$$(".gsc-cursor, " + pageSelector);
-            
+
             // if(elements.length === 0) {
             //console.log("Element not found. Closing the bprwser.");
             // await browser.close();
@@ -98,39 +104,39 @@ const crawl =  async (Keywords , location) => {
             await page.click(pageSelector);
         }
 
-            // console.log(extractedData);
-            const extractedData = x.reduce((result, item) => {
-                const matches = item.email(/@([^\.]*)\./);
-                console.log(matches);
-                if(matches) {
-                    const companyName = matches[1];
-                    result.push({
-                        email: item.email,
-                        companyName: companyName,
-                        source: item.source,
-                    });
-                }
-                return result;
-            }, []);
+        // console.log(extractedData);
+        const extractedData = x.reduce((result, item) => {
+            let matches = item.email.match(/@([^@.]+)\.([a-zA-Z]{2,})$/);
+            if (matches) {
+                const companyName = matches[1];
+                result.push({
+                    email: item.email,
+                    companyName: companyName,
+                    source: item.source,
+                });
+            }
+            return result;
+        }, []);
 
-            //console.log(extractedData);
+        //console.log(extractedData);
 
-            //closing browser 
-            browser.close();
+        //closing browser 
+        browser.close();
 
-            //Filtering Unique emails
-            const unique = extractedData.filter((obj, index) => {
-                return index === extractedData.findIndex((o) => obj.email === o.email);
-            });
+        //Filtering Unique emails
+        const unique = extractedData.filter((obj, index) => {
+            return index === extractedData.findIndex((o) => obj.email === o.email);
+        });
 
-            console.log(unique);
-            return unique;
+        console.log(unique);
+        return unique;
 
     } catch (error) {
         return [];
     }
 };
 
-crawl("mail on recrute développeur web", "Tunisie") ;
+crawl("mail on récrute développeur web", "Tunisie");
+
 
 module.exports = crawl; 
